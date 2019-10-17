@@ -1,0 +1,16 @@
+version: '3.3'
+
+volumes:
+  postgres-data:
+
+services:
+  postgres:
+    image: postgres:12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+  flask:
+    build: .
+    volumes:
+      - ${PWD}/example:/src
+    ports:
+      - "8080:8080"
