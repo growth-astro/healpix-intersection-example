@@ -1,3 +1,5 @@
 astropy-healpix
 flask
 flask-sqlalchemy
+mocpy
+psycopg2-binary
