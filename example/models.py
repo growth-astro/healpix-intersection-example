@@ -1,9 +1,15 @@
+from astropy_healpix import uniq_to_level_ipix
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects import postgresql
+import numpy as np
+from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
 
 from .flask import app
+from .utils.int8range import Int8RangeType
+from .utils import numpy_adapters
 
 db = SQLAlchemy(app)
+
+LEVEL = 29
 
 
 class Localization(db.Model):
@@ -17,6 +23,17 @@ class Localization(db.Model):
         'LocalizationTile',
         backref='localization')
 
+    @classmethod
+    def from_multiresolution(cls, sky_map):
+        level, ipix = uniq_to_level_ipix(sky_map['UNIQ'])
+        factor = 1 << (LEVEL - level)
+        ipix_lo = ipix * factor
+        ipix_hi = (ipix + 1) * factor
+        return cls(tiles=[
+            LocalizationTile(pixels=(lo, hi), probdensity=p)
+            for lo, hi, p in zip(ipix_lo, ipix_hi, sky_map['PROBDENSITY'])
+        ])
+
 
 class LocalizationTile(db.Model):
 
@@ -26,11 +43,11 @@ class LocalizationTile(db.Model):
         primary_key=True)
 
     pixels = db.Column(
-        postgresql.INT8RANGE,
+        Int8RangeType,
         primary_key=True)
 
     probdensity = db.Column(
-        postgresql.DOUBLE_PRECISION,
+        DOUBLE_PRECISION,
         nullable=False)
 
 
@@ -54,5 +71,5 @@ class FieldTile(db.Model):
         primary_key=True)
 
     pixels = db.Column(
-        postgresql.INT8RANGE,
+        Int8RangeType,
         primary_key=True)

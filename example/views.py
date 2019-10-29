@@ -14,3 +14,11 @@ def create_all():
     admin.create_all()
     flash('Initialized database.', 'success')
     return redirect(url_for('index'))
+
+
+@app.route('/load_examples', methods=['POST'])
+def load_examples():
+    n = 5
+    admin.load_examples(n)
+    flash(f'Loaded some recent mock events', 'success')
+    return redirect(url_for('index'))
