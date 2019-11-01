@@ -4,4 +4,4 @@ flask-sqlalchemy
 ligo-gracedb
 mocpy
 psycopg2-binary
-sqlalchemy-utils[intervals]
+sqlalchemy-utils[intervals] >= 0.35.0

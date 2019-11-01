@@ -2,9 +2,9 @@ from astropy_healpix import uniq_to_level_ipix
 from flask_sqlalchemy import SQLAlchemy
 import numpy as np
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
+from sqlalchemy_utils.types.range import Int8RangeType
 
 from .flask import app
-from .utils.int8range import Int8RangeType
 from .utils import numpy_adapters
 
 db = SQLAlchemy(app)
