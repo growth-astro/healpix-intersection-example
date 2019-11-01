@@ -16,7 +16,6 @@ class Localization(db.Model):
 
     localization_id = db.Column(
         db.Integer,
-        db.Sequence('localization_id_seq'),
         primary_key=True)
 
     tiles = db.relationship(
@@ -51,11 +50,26 @@ class LocalizationTile(db.Model):
         nullable=False)
 
 
+class Telescope(db.Model):
+
+    telescope_name = db.Column(
+        db.Unicode,
+        primary_key=True)
+
+    fields = db.relationship(
+        'Field',
+        backref='telescope')
+
+
 class Field(db.Model):
+
+    telescope_name = db.Column(
+        db.Unicode,
+        db.ForeignKey(Telescope.telescope_name),
+        primary_key=True)
 
     field_id = db.Column(
         db.Integer,
-        db.Sequence('field_id_seq'),
         primary_key=True)
 
     tiles = db.relationship(
@@ -65,9 +79,22 @@ class Field(db.Model):
 
 class FieldTile(db.Model):
 
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ['telescope_name',
+             'field_id'],
+            ['field.telescope_name',
+             'field.field_id'],
+        ),
+    )
+
+    telescope_name = db.Column(
+        db.Unicode,
+        db.ForeignKey(Telescope.telescope_name),
+        primary_key=True)
+
     field_id = db.Column(
         db.Integer,
-        db.ForeignKey(Field.field_id),
         primary_key=True)
 
     pixels = db.Column(

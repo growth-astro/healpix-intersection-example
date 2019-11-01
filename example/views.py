@@ -22,3 +22,11 @@ def load_examples():
     admin.load_examples(n)
     flash(f'Loaded some recent mock events', 'success')
     return redirect(url_for('index'))
+
+
+@app.route('/load_ztf', methods=['POST'])
+def load_ztf():
+    n = 5
+    admin.load_ztf()
+    flash(f'Loaded ZTF fields', 'success')
+    return redirect(url_for('index'))
