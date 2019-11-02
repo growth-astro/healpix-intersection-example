@@ -1,4 +1,3 @@
-import logging
 import re
 from shutil import copyfileobj
 from tempfile import NamedTemporaryFile
@@ -9,15 +8,15 @@ from astropy.time import Time
 from astropy.utils.data import get_readable_fileobj
 from astropy import units as u
 from ligo.gracedb.rest import GraceDb
+from mocpy import MOC
 import numpy as np
 
+from .flask import app
 from .models import db, Localization, Telescope, Field
 
 gracedb = GraceDb(force_noauth=True)
 
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                    level=logging.INFO)
-log = logging.getLogger(__name__)
+log = app.logger
 
 
 def create_all():
@@ -40,8 +39,9 @@ def load_examples(n):
                 copyfileobj(remote, local)
                 sky_map = Table.read(local.name, format='fits')
         log.info('creating ORM records')
-        db.session.merge(Localization.from_sky_map(sky_map))
-        log.info('committing')
+        localization = Localization.from_sky_map(sky_map)
+        log.info('saving')
+        db.session.add(localization)
         db.session.commit()
         log.info('done')
         break
@@ -96,14 +96,16 @@ def load_ztf():
     centers = SkyCoord(table['RA'] * u.deg, table['Dec'] * u.deg)
     vertices = get_footprints_grid(lon, lat, centers)
 
+    log.info('building MOCs')
+    mocs = [MOC.from_polygon_skycoord(verts) for verts in vertices]
+
     log.info('creating ORM records')
-    db.session.merge(
-        Telescope(
-            telescope_name='ZTF',
-            fields=[Field.from_polygon(verts, field_id=field_id)
-                    for field_id, verts in zip(table['ID'], vertices)]
-        )
+    telescope = Telescope(
+        telescope_name='ZTF',
+        fields=[Field.from_moc(moc, field_id=field_id)
+                for field_id, moc in zip(table['ID'], mocs)]
     )
-    log.info('committing')
+    log.info('saving')
+    db.session.add(telescope)
     db.session.commit()
     log.info('done')
