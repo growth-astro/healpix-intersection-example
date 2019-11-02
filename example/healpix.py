@@ -1,13 +1,13 @@
 """Model base classes for multiresolution HEALPix data."""
 from astropy_healpix import uniq_to_level_ipix
-from intervals import IntInterval
 from mocpy import MOC
 from sqlalchemy import Column
-from sqlalchemy_utils.types.range import Int8RangeType
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.dialects.postgresql import INT8RANGE
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.mapper import Mapper
+from psycopg2.extras import NumericRange
 
 LEVEL = MOC.HPY_MAX_NORDER
 """Base HEALPix resolution. This is the maximum HEALPix level that can be
@@ -18,7 +18,7 @@ class Tile:
     """Mixin class for a table that stores a HEALPix multiresolution tile."""
 
     nested_range = Column(
-        Int8RangeType, primary_key=True,
+        INT8RANGE, primary_key=True,
         comment=f'Range of HEALPix nested indices at nside=2**{LEVEL}')
 
     def __init__(self, *args, uniq=None, **kwargs):
@@ -41,7 +41,7 @@ class Tile:
         level_diff = (LEVEL - level)
         lower = ipix << level_diff
         upper = (ipix + 1) << level_diff
-        self.nested_range = IntInterval.closed_open(int(lower), int(upper))
+        self.nested_range = NumericRange(lower, upper)
 
 
 def _class_or_lambda(cls):
@@ -80,8 +80,8 @@ class Region:
         # but it actually returns an array of size(1, 0).
         if nested_ranges.shape == 0:
             nested_ranges = nested_ranges.reshape(-1, 2)
-        tiles = [tile_class(nested_range=IntInterval.closed_open(lo, hi))
-                 for lo, hi in nested_ranges.tolist()]
+        tiles = [tile_class(nested_range=NumericRange(lo, hi))
+                 for lo, hi in nested_ranges]
         return cls(*args, tiles=tiles, **kwargs)
 
     @classmethod

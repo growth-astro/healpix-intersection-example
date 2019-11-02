@@ -4,4 +4,3 @@ flask-sqlalchemy
 ligo-gracedb
 mocpy
 psycopg2-binary
-git+https://github.com/lpsinger/sqlalchemy-utils@fix-typo-int8range#egg=sqlalchemy-utils[intervals] >= 0.35.0
