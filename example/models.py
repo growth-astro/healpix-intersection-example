@@ -1,15 +1,12 @@
-from astropy_healpix import uniq_to_level_ipix
 from flask_sqlalchemy import SQLAlchemy
 import numpy as np
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
-from sqlalchemy_utils.types.range import Int8RangeType
 
 from .flask import app
 from .utils import numpy_adapters
+from .healpix import Region, Tile
 
 db = SQLAlchemy(app)
-
-LEVEL = 29
 
 
 class Localization(db.Model):
@@ -23,26 +20,24 @@ class Localization(db.Model):
         backref='localization')
 
     @classmethod
-    def from_multiresolution(cls, sky_map):
-        level, ipix = uniq_to_level_ipix(sky_map['UNIQ'])
-        factor = 1 << (LEVEL - level)
-        ipix_lo = ipix * factor
-        ipix_hi = (ipix + 1) * factor
-        return cls(tiles=[
-            LocalizationTile(pixels=(lo, hi), probdensity=p)
-            for lo, hi, p in zip(ipix_lo, ipix_hi, sky_map['PROBDENSITY'])
-        ])
+    def from_sky_map(cls, sky_map, *args, **kwargs):
+        """Create an instance from a multiresolution sky map.
+
+        Parameters
+        ----------
+        sky_map : astropy.table.Table
+        """
+        tiles = [
+            LocalizationTile(uniq=row['UNIQ'], probdensity=row['PROBDENSITY'])
+            for row in sky_map]
+        return cls(*args, tiles=tiles, **kwargs)
 
 
-class LocalizationTile(db.Model):
+class LocalizationTile(Tile, db.Model):
 
     localization_id = db.Column(
         db.Integer,
         db.ForeignKey(Localization.localization_id),
-        primary_key=True)
-
-    pixels = db.Column(
-        Int8RangeType,
         primary_key=True)
 
     probdensity = db.Column(
@@ -61,7 +56,9 @@ class Telescope(db.Model):
         backref='telescope')
 
 
-class Field(db.Model):
+class Field(Region, db.Model):
+
+    tile_class = lambda: FieldTile
 
     telescope_name = db.Column(
         db.Unicode,
@@ -72,12 +69,8 @@ class Field(db.Model):
         db.Integer,
         primary_key=True)
 
-    tiles = db.relationship(
-        'FieldTile',
-        backref='field')
 
-
-class FieldTile(db.Model):
+class FieldTile(Tile, db.Model):
 
     __table_args__ = (
         db.ForeignKeyConstraint(
@@ -95,8 +88,4 @@ class FieldTile(db.Model):
 
     field_id = db.Column(
         db.Integer,
-        primary_key=True)
-
-    pixels = db.Column(
-        Int8RangeType,
         primary_key=True)

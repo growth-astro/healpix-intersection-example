@@ -1,4 +1,5 @@
 from flask import flash, redirect, render_template, url_for
+from flask_admin.contrib.sqlamodel import ModelView
 
 from .flask import app
 from . import admin

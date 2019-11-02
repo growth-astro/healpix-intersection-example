@@ -35,15 +35,39 @@ def load_examples(n):
             with NamedTemporaryFile(mode='wb') as local:
                 copyfileobj(remote, local)
                 sky_map = Table.read(local.name, format='fits')
-                db.session.merge(Localization.from_multiresolution(sky_map))
+                db.session.merge(Localization.from_sky_map(sky_map))
                 db.session.commit()
 
 
 def get_ztf_footprint_corners():
     """Return the corner offsets of the ZTF footprint."""
     x = 6.86 / 2
-    return np.asarray([[-x, +x, +x, -x],
-                       [-x, -x, +x, +x]])
+    return [-x, +x, +x, -x] * u.deg, [-x, -x, +x, +x] * u.deg
+
+
+def get_footprints_grid(lon, lat, offsets):
+    """Get a grid of footprints for an equatorial-mount telescope.
+
+    Parameters
+    ----------
+    lon : astropy.units.Quantity
+        Longitudes of footprint vertices at the standard pointing.
+        Should be an array of length N.
+    lat : astropy.units.Quantity
+        Latitudes of footprint vertices at the standard pointing.
+        Should be an array of length N.
+    offsets : astropy.coordinates.SkyCoord
+        Pointings for the field grid.
+        Should have length M.
+
+    Returns
+    -------
+    astropy.coordinates.SkyCoord
+        Footprints with dimensions (M, N).
+    """
+    lon = np.repeat(lon[np.newaxis, :], len(offsets), axis=0)
+    lat = np.repeat(lat[np.newaxis, :], len(offsets), axis=0)
+    return SkyCoord(lon, lat, frame=offsets[:, np.newaxis].skyoffset_frame())
 
 
 def load_ztf():
@@ -53,23 +77,15 @@ def load_ztf():
         names = re.split(r'\s\s+', first_line.lstrip('%').strip())
         table = Table.read(lines, format='ascii', names=names)
 
-    footprint_radecs = get_ztf_footprint_corners()
-    field_centers = SkyCoord(table['RA'] * u.deg, table['Dec'] * u.deg)
-    field_vertices = SkyCoord(
-        *np.repeat(footprint_radecs[:, np.newaxis, ...], len(table), axis=1),
-        unit=u.deg, frame=field_centers[:, np.newaxis].skyoffset_frame()).icrs
+    lon, lat = get_ztf_footprint_corners()
+    centers = SkyCoord(table['RA'] * u.deg, table['Dec'] * u.deg)
+    vertices = get_footprints_grid(lon, lat, centers)
 
     db.session.merge(
         Telescope(
             telescope_name='ZTF',
-            fields=[
-                Field(field_id=field_id, tiles=[
-                    FieldTile(pixels=IntInterval(*pixels.tolist()))
-                    for pixels in
-                    MOC.from_polygon_skycoord(verts)._interval_set._intervals
-                ]) for field_id, verts
-                in zip(table['ID'], field_vertices)
-            ]
+            fields=[Field.from_polygon(verts, field_id=field_id)
+                    for field_id, verts in zip(table['ID'], vertices)]
         )
     )
     db.session.commit()
