@@ -1,5 +1,4 @@
 from flask_sqlalchemy import SQLAlchemy
-import numpy as np
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
 
 from .flask import app

@@ -1,5 +1,5 @@
 """Model base classes for multiresolution HEALPix data."""
-from astropy_healpix import level_ipix_to_uniq, uniq_to_level_ipix
+from astropy_healpix import uniq_to_level_ipix
 from intervals import IntInterval
 from mocpy import MOC
 from sqlalchemy import Column
@@ -29,8 +29,10 @@ class Tile:
     @hybrid_property
     def uniq(self):
         """HEALPix UNIQ pixel index."""
+        # This is the same expression as in astropy_healpix.level_ipix_to_uniq,
+        # but reproduced here so that SQLAlchemy can map it to SQL.
         ipix = self.nested_range.lower
-        return ipix + (1 << 2 * (level + 1))
+        return ipix + (1 << 2 * (LEVEL + 1))
 
     @uniq.setter
     def uniq(self, value):

@@ -1,3 +1,4 @@
+import logging
 import re
 from shutil import copyfileobj
 from tempfile import NamedTemporaryFile
@@ -8,14 +9,15 @@ from astropy.time import Time
 from astropy.utils.data import get_readable_fileobj
 from astropy import units as u
 from ligo.gracedb.rest import GraceDb
-from intervals import IntInterval
-from mocpy import MOC
 import numpy as np
 
-from .models import db, Localization, Telescope, Field, FieldTile
-from .utils import numpy_adapters
+from .models import db, Localization, Telescope, Field
 
 gracedb = GraceDb(force_noauth=True)
+
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
+                    level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 def create_all():
@@ -29,14 +31,20 @@ def load_examples(n):
     gps_end = int(Time.now().gps)
     gps_start = gps_end - 7200
     query = f'category: MDC {gps_start} .. {gps_end}'
+    log.info('querying GraceDB: "%s"', query)
     for s in gracedb.superevents(query):
         gracedb_id = s['superevent_id']
+        log.info('downloading sky map for %s', gracedb_id)
         with gracedb.files(gracedb_id, 'bayestar.multiorder.fits') as remote:
             with NamedTemporaryFile(mode='wb') as local:
                 copyfileobj(remote, local)
                 sky_map = Table.read(local.name, format='fits')
-                db.session.merge(Localization.from_sky_map(sky_map))
-                db.session.commit()
+        log.info('creating ORM records')
+        db.session.merge(Localization.from_sky_map(sky_map))
+        log.info('committing')
+        db.session.commit()
+        log.info('done')
+        break
 
 
 def get_ztf_footprint_corners():
@@ -71,16 +79,24 @@ def get_footprints_grid(lon, lat, offsets):
 
 
 def load_ztf():
+    log.info('downloading and reading ZTF field list')
     url = 'https://github.com/ZwickyTransientFacility/ztf_information/raw/master/field_grid/ZTF_Fields.txt'
     with get_readable_fileobj(url) as f:
         first_line, *lines = f
         names = re.split(r'\s\s+', first_line.lstrip('%').strip())
         table = Table.read(lines, format='ascii', names=names)
 
+    # FIXME: this is really slow, so just take the first 100 fields for now
+    n = 100
+    table = table[:100]
+    log.info('taking only first %d fields for speed', n)
+
+    log.info('building footprint polygons')
     lon, lat = get_ztf_footprint_corners()
     centers = SkyCoord(table['RA'] * u.deg, table['Dec'] * u.deg)
     vertices = get_footprints_grid(lon, lat, centers)
 
+    log.info('creating ORM records')
     db.session.merge(
         Telescope(
             telescope_name='ZTF',
@@ -88,4 +104,6 @@ def load_ztf():
                     for field_id, verts in zip(table['ID'], vertices)]
         )
     )
+    log.info('committing')
     db.session.commit()
+    log.info('done')

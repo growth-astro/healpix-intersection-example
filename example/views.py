@@ -27,7 +27,6 @@ def load_examples():
 
 @app.route('/load_ztf', methods=['POST'])
 def load_ztf():
-    n = 5
     admin.load_ztf()
     flash(f'Loaded ZTF fields', 'success')
     return redirect(url_for('index'))

@@ -1,6 +1,7 @@
 """Adapt Numpy values for postgres databases.
 
-Inspired by https://github.com/kgullikson88/Stellar_database/blob/master/NumpyAdaptorsPostgreSQL.py.
+Inspired by
+https://github.com/kgullikson88/Stellar_database/blob/master/NumpyAdaptorsPostgreSQL.py.
 """
 import numpy as np
 from psycopg2.extensions import register_adapter, AsIs
