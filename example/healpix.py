@@ -75,10 +75,13 @@ class Region:
             A list of Tile instances.
         """
         tile_class = _class_or_lambda(cls.tile_class)
-        # FIXME: MOCpy should return a 1D array of size 0 for an empty MOC,
-        # but it actually returns an array of size(1, 0). Hence ravel().
-        uniqs = moc._uniq_format().ravel()
-        tiles = [tile_class(uniq=uniq) for uniq in uniqs]
+        nested_ranges = moc._interval_set.nested
+        # FIXME: MOCpy should return an array of size(0, 2) 0 for an empty MOC,
+        # but it actually returns an array of size(1, 0).
+        if nested_ranges.shape == 0:
+            nested_ranges = nested_ranges.reshape(-1, 2)
+        tiles = [tile_class(nested_range=IntInterval.closed_open(lo, hi))
+                 for lo, hi in nested_ranges.tolist()]
         return cls(*args, tiles=tiles, **kwargs)
 
     @classmethod
