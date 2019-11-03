@@ -28,7 +28,7 @@ def create_all():
 
 def load_examples(n):
     gps_end = int(Time.now().gps)
-    gps_start = gps_end - 7200
+    gps_start = gps_end - 86400
     query = f'category: MDC {gps_start} .. {gps_end}'
     log.info('querying GraceDB: "%s"', query)
     for s in gracedb.superevents(query):
