@@ -1,5 +1,7 @@
 """Model base classes for multiresolution HEALPix data."""
-from astropy_healpix import uniq_to_level_ipix
+from astropy import units as u
+from astropy_healpix import (level_to_nside, nside_to_pixel_area,
+                             uniq_to_level_ipix)
 from mocpy import MOC
 from sqlalchemy import Column, Index
 from sqlalchemy.ext.declarative import declared_attr
@@ -7,11 +9,19 @@ from sqlalchemy.dialects.postgresql import INT8RANGE
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.mapper import Mapper
+from sqlalchemy.sql.expression import func
 from psycopg2.extras import NumericRange
 
 LEVEL = MOC.HPY_MAX_NORDER
 """Base HEALPix resolution. This is the maximum HEALPix level that can be
 stored in a signed 8-byte integer data type."""
+
+PIXEL_AREA = nside_to_pixel_area(level_to_nside(LEVEL)).to_value(u.sr)
+"""Native pixel area in steradians."""
+
+
+def area(nested_range):
+    return (func.upper(nested_range) - func.lower(nested_range)) * PIXEL_AREA
 
 
 class Tile:
