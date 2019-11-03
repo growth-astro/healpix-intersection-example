@@ -78,7 +78,7 @@ class Region:
         nested_ranges = moc._interval_set.nested
         # FIXME: MOCpy should return an array of size(0, 2) 0 for an empty MOC,
         # but it actually returns an array of size(1, 0).
-        if nested_ranges.shape == 0:
+        if nested_ranges.size == 0:
             nested_ranges = nested_ranges.reshape(-1, 2)
         tiles = [tile_class(nested_range=NumericRange(lo, hi))
                  for lo, hi in nested_ranges]
