@@ -86,11 +86,6 @@ def load_ztf():
         names = re.split(r'\s\s+', first_line.lstrip('%').strip())
         table = Table.read(lines, format='ascii', names=names)
 
-    # FIXME: this is really slow, so just take the first 100 fields for now
-    n = 100
-    table = table[:100]
-    log.info('taking only first %d fields for speed', n)
-
     log.info('building footprint polygons')
     lon, lat = get_ztf_footprint_corners()
     centers = SkyCoord(table['RA'] * u.deg, table['Dec'] * u.deg)
