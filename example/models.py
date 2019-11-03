@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
+from sqlalchemy.ext.declarative import declared_attr
 
 from .flask import app
 from .utils import numpy_adapters
@@ -71,14 +72,17 @@ class Field(Region, db.Model):
 
 class FieldTile(Tile, db.Model):
 
-    __table_args__ = (
-        db.ForeignKeyConstraint(
-            ['telescope_name',
-             'field_id'],
-            ['field.telescope_name',
-             'field.field_id'],
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            *super().__table_args__,
+            db.ForeignKeyConstraint(
+                ['telescope_name',
+                 'field_id'],
+                ['field.telescope_name',
+                 'field.field_id'],
+            )
+        )
 
     telescope_name = db.Column(
         db.Unicode,

@@ -1,7 +1,7 @@
 """Model base classes for multiresolution HEALPix data."""
 from astropy_healpix import uniq_to_level_ipix
 from mocpy import MOC
-from sqlalchemy import Column
+from sqlalchemy import Column, Index
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import INT8RANGE
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -20,6 +20,13 @@ class Tile:
     nested_range = Column(
         INT8RANGE, primary_key=True,
         comment=f'Range of HEALPix nested indices at nside=2**{LEVEL}')
+
+    @declared_attr
+    def __table_args__(cls):
+        index = Index(
+            f'{cls.__tablename__}_nested_range_index',
+            'nested_range', postgresql_using='gist')
+        return (index,)
 
     def __init__(self, *args, uniq=None, **kwargs):
         super().__init__(*args, **kwargs)
