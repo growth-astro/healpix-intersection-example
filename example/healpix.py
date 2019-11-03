@@ -45,9 +45,9 @@ class Tile:
     def uniq(self, value):
         """HEALPix UNIQ pixel index."""
         level, ipix = uniq_to_level_ipix(value)
-        level_diff = (LEVEL - level)
-        lower = ipix << level_diff
-        upper = (ipix + 1) << level_diff
+        shift = 2 * (LEVEL - level)
+        lower = ipix << shift
+        upper = (ipix + 1) << shift
         self.nested_range = NumericRange(lower, upper)
 
 
