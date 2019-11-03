@@ -9,6 +9,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.mapper import Mapper
 from psycopg2.extras import NumericRange
 
+# Monkey-patch to allow us to use SP-GiST and BRIN indices
+from sqlalchemy.dialects.postgresql import base
+import re
+base.IDX_USING = re.compile(r"^(?:brin|btree|hash|gist|gin|spgist|[\w_]+)$", re.I)
+
 LEVEL = MOC.HPY_MAX_NORDER
 """Base HEALPix resolution. This is the maximum HEALPix level that can be
 stored in a signed 8-byte integer data type."""
@@ -25,7 +30,7 @@ class Tile:
     def __table_args__(cls):
         index = Index(
             f'{cls.__tablename__}_nested_range_index',
-            'nested_range', postgresql_using='gist')
+            'nested_range', postgresql_using='spgist')
         return (index,)
 
     def __init__(self, *args, uniq=None, **kwargs):
