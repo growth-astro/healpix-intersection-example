@@ -42,9 +42,9 @@ def load_examples(n):
         localization = Localization.from_sky_map(sky_map)
         log.info('saving')
         db.session.add(localization)
-        db.session.commit()
-        log.info('done')
-        break
+    log.info('committing')
+    db.session.commit()
+    log.info('done')
 
 
 def get_ztf_footprint_corners():
