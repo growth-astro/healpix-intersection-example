@@ -1,5 +1,11 @@
 FROM python:3.7-slim
+
+# Install Python dependencies
 COPY requirements.txt /
 RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
-ENV FLASK_APP=/example FLASK_ENV=development
-ENTRYPOINT flask run --with-threads --host 0.0.0.0 --port 8080
+
+# Do some imports that prime some cached data
+RUN python -c 'import astropy.coordinates'
+
+CMD python -m example.demo
+

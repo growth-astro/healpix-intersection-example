@@ -1,4 +1,6 @@
+"""Load external sample data"""
 import re
+import logging
 from shutil import copyfileobj
 from tempfile import NamedTemporaryFile
 
@@ -10,20 +12,15 @@ from astropy import units as u
 from ligo.gracedb.rest import GraceDb
 from mocpy import MOC
 import numpy as np
+from sqlalchemy import func
 
-from .flask import app
-from .models import db, Localization, Telescope, Field
+from . import db
+from . import healpix
+from .models import Localization, LocalizationTile, FieldTile, Telescope, Field
 
 gracedb = GraceDb(force_noauth=True)
 
-log = app.logger
-
-
-def create_all():
-    db.reflect()
-    db.drop_all()
-    db.session.commit()
-    db.create_all()
+log = logging.getLogger(__name__)
 
 
 def load_examples(n):
@@ -31,7 +28,9 @@ def load_examples(n):
     gps_start = gps_end - 86400
     query = f'category: MDC {gps_start} .. {gps_end}'
     log.info('querying GraceDB: "%s"', query)
-    for s in gracedb.superevents(query):
+    for i, s in enumerate(gracedb.superevents(query)):
+        if i >= n:
+            break
         gracedb_id = s['superevent_id']
         log.info('downloading sky map for %s', gracedb_id)
         with gracedb.files(gracedb_id, 'bayestar.multiorder.fits') as remote:
@@ -81,7 +80,7 @@ def get_footprints_grid(lon, lat, offsets):
 def load_ztf():
     log.info('downloading and reading ZTF field list')
     url = 'https://github.com/ZwickyTransientFacility/ztf_information/raw/master/field_grid/ZTF_Fields.txt'
-    with get_readable_fileobj(url) as f:
+    with get_readable_fileobj(url, show_progress=False) as f:
         first_line, *lines = f
         names = re.split(r'\s\s+', first_line.lstrip('%').strip())
         table = Table.read(lines, format='ascii', names=names)
@@ -104,3 +103,25 @@ def load_ztf():
     db.session.add(telescope)
     db.session.commit()
     log.info('done')
+
+
+def top_10_fields_by_prob():
+    area = healpix.area(LocalizationTile.nested_range * FieldTile.nested_range)
+    prob = func.sum(LocalizationTile.probdensity * area).label('probability')
+
+    query = db.session.query(
+        prob,
+        LocalizationTile.localization_id,
+        FieldTile.field_id
+    ).join(
+        FieldTile,
+        LocalizationTile.nested_range.overlaps(FieldTile.nested_range)
+    ).group_by(
+        LocalizationTile.localization_id, FieldTile.field_id
+    ).order_by(
+        prob.desc()
+    ).limit(
+        10
+    )
+
+    return query.all()

@@ -1,6 +1,5 @@
 astropy-healpix
-flask
-flask-sqlalchemy
+inflection
 ligo-gracedb
 mocpy
-psycopg2-binary
+sqlalchemy[postgresql_psycopg2binary]

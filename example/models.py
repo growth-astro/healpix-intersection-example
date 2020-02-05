@@ -1,21 +1,23 @@
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Integer, Unicode
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
-from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.declarative import declared_attr, declarative_base
+from sqlalchemy.orm import relationship
 
-from .flask import app
 from .utils import numpy_adapters
+from .utils.auto_table_name import AutoTableName
 from .healpix import Region, Tile
 
-db = SQLAlchemy(app)
+
+Base = declarative_base(cls=AutoTableName)
 
 
-class Localization(db.Model):
+class Localization(Base):
 
-    localization_id = db.Column(
-        db.Integer,
+    localization_id = Column(
+        Integer,
         primary_key=True)
 
-    tiles = db.relationship(
+    tiles = relationship(
         'LocalizationTile',
         backref='localization')
 
@@ -33,50 +35,50 @@ class Localization(db.Model):
         return cls(*args, tiles=tiles, **kwargs)
 
 
-class LocalizationTile(Tile, db.Model):
+class LocalizationTile(Tile, Base):
 
-    localization_id = db.Column(
-        db.Integer,
-        db.ForeignKey(Localization.localization_id),
+    localization_id = Column(
+        Integer,
+        ForeignKey(Localization.localization_id),
         primary_key=True)
 
-    probdensity = db.Column(
+    probdensity = Column(
         DOUBLE_PRECISION,
         nullable=False)
 
 
-class Telescope(db.Model):
+class Telescope(Base):
 
-    telescope_name = db.Column(
-        db.Unicode,
+    telescope_name = Column(
+        Unicode,
         primary_key=True)
 
-    fields = db.relationship(
+    fields = relationship(
         'Field',
         backref='telescope')
 
 
-class Field(Region, db.Model):
+class Field(Region, Base):
 
     tile_class = lambda: FieldTile
 
-    telescope_name = db.Column(
-        db.Unicode,
-        db.ForeignKey(Telescope.telescope_name),
+    telescope_name = Column(
+        Unicode,
+        ForeignKey(Telescope.telescope_name),
         primary_key=True)
 
-    field_id = db.Column(
-        db.Integer,
+    field_id = Column(
+        Integer,
         primary_key=True)
 
 
-class FieldTile(Tile, db.Model):
+class FieldTile(Tile, Base):
 
     @declared_attr
     def __table_args__(cls):
         return (
             *super().__table_args__,
-            db.ForeignKeyConstraint(
+            ForeignKeyConstraint(
                 ['telescope_name',
                  'field_id'],
                 ['field.telescope_name',
@@ -84,11 +86,11 @@ class FieldTile(Tile, db.Model):
             )
         )
 
-    telescope_name = db.Column(
-        db.Unicode,
-        db.ForeignKey(Telescope.telescope_name),
+    telescope_name = Column(
+        Unicode,
+        ForeignKey(Telescope.telescope_name),
         primary_key=True)
 
-    field_id = db.Column(
-        db.Integer,
+    field_id = Column(
+        Integer,
         primary_key=True)
