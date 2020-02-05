@@ -33,4 +33,3 @@ Creating healpix-intersection-example_postgres_1 ... done
 *** load example LIGO sky map - 6.3 s
 *** top 10 fields by probability - 3.1 s
 ```
-
