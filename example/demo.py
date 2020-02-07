@@ -25,3 +25,6 @@ with time('top 10 fields by probability'):
 
 with time('top 10 galaxies by probability density'):
     data.top_10_galaxies_by_probdensity()
+
+with time('top 10 fields by galaxy count'):
+    data.top_10_fields_by_galaxy_count()

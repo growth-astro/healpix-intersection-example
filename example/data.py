@@ -161,3 +161,23 @@ def top_10_galaxies_by_probdensity():
     )
 
     return query.all()
+
+
+def top_10_fields_by_galaxy_count():
+    count_galaxies = func.count(Galaxy.simbad_name).label('count_galaxies')
+
+    query = db.session.query(
+        FieldTile.field_id,
+        count_galaxies
+    ).join(
+        Galaxy,
+        FieldTile.nested_range.contains(Galaxy.nested)
+    ).group_by(
+        FieldTile.field_id
+    ).order_by(
+        count_galaxies.desc()
+    ).limit(
+        10
+    )
+
+    return query.all()
