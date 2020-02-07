@@ -1,9 +1,10 @@
 """Model base classes for multiresolution HEALPix data."""
+from astropy.coordinates import ICRS
 from astropy import units as u
 from astropy_healpix import (level_to_nside, nside_to_pixel_area,
-                             uniq_to_level_ipix)
+                             uniq_to_level_ipix, HEALPix)
 from mocpy import MOC
-from sqlalchemy import Column, Index
+from sqlalchemy import BigInteger, Column, Index
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import INT8RANGE
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -16,12 +17,43 @@ LEVEL = MOC.HPY_MAX_NORDER
 """Base HEALPix resolution. This is the maximum HEALPix level that can be
 stored in a signed 8-byte integer data type."""
 
-PIXEL_AREA = nside_to_pixel_area(level_to_nside(LEVEL)).to_value(u.sr)
+HPX = HEALPix(nside=level_to_nside(LEVEL), order='nested', frame=ICRS())
+"""HEALPix projection object."""
+
+PIXEL_AREA = HPX.pixel_area.to_value(u.sr)
 """Native pixel area in steradians."""
 
 
 def area(nested_range):
     return (func.upper(nested_range) - func.lower(nested_range)) * PIXEL_AREA
+
+
+class Point:
+    """Mixin class for a table that stores a HEALPix multiresolution point."""
+
+    nested = Column(
+        BigInteger, index=True, nullable=False,
+        comment=f'HEALPix nested index at nside=2**{LEVEL}')
+
+    def __init__(self, *args, uniq=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if uniq is not None:
+            self.uniq = uniq
+
+    @hybrid_property
+    def uniq(self):
+        """HEALPix UNIQ pixel index."""
+        # This is the same expression as in astropy_healpix.level_ipix_to_uniq,
+        # but reproduced here so that SQLAlchemy can map it to SQL.
+        ipix = self.nested
+        return ipix + (1 << 2 * (LEVEL + 1))
+
+    @uniq.setter
+    def uniq(self, value):
+        """HEALPix UNIQ pixel index."""
+        level, ipix = uniq_to_level_ipix(value)
+        shift = 2 * (LEVEL - level)
+        self.nested = ipix << shift
 
 
 class Tile:

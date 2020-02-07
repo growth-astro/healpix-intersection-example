@@ -1,4 +1,5 @@
 astropy-healpix
+astroquery
 inflection
 ligo-gracedb
 mocpy

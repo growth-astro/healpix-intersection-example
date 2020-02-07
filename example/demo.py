@@ -17,5 +17,11 @@ with time('load ZTF fields'):
 with time('load example LIGO sky map'):
     data.load_examples(1)
 
+with time('loading 2MRS catalog'):
+    data.load_2mrs()
+
 with time('top 10 fields by probability'):
     data.top_10_fields_by_prob()
+
+with time('top 10 galaxies by probability density'):
+    data.top_10_galaxies_by_probdensity()

@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 
 from .utils import numpy_adapters
 from .utils.auto_table_name import AutoTableName
-from .healpix import Region, Tile
+from .healpix import Point, Region, Tile
 
 
 Base = declarative_base(cls=AutoTableName)
@@ -56,6 +56,13 @@ class Telescope(Base):
     fields = relationship(
         'Field',
         backref='telescope')
+
+
+class Galaxy(Point, Base):
+
+    simbad_name = Column(
+        Unicode,
+        primary_key=True)
 
 
 class Field(Region, Base):

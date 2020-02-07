@@ -9,6 +9,7 @@ from astropy.table import Table
 from astropy.time import Time
 from astropy.utils.data import get_readable_fileobj
 from astropy import units as u
+from astroquery.vizier import VizierClass
 from ligo.gracedb.rest import GraceDb
 from mocpy import MOC
 import numpy as np
@@ -16,7 +17,7 @@ from sqlalchemy import func
 
 from . import db
 from . import healpix
-from .models import Localization, LocalizationTile, FieldTile, Telescope, Field
+from .models import Localization, LocalizationTile, FieldTile, Telescope, Field, Galaxy
 
 gracedb = GraceDb(force_noauth=True)
 
@@ -105,6 +106,22 @@ def load_ztf():
     log.info('done')
 
 
+def load_2mrs():
+    log.info('loading 2MRS from VizieR')
+    vizier = VizierClass(columns=['SimbadName', 'RAJ2000', 'DEJ2000'],
+                         row_limit=-1)
+    cat, = vizier.get_catalogs('J/ApJS/199/26/table3')
+    log.info('converting to HEALPix')
+    ipix = healpix.HPX.lonlat_to_healpix(u.Quantity(cat['RAJ2000']),
+                                         u.Quantity(cat['DEJ2000']))
+    log.info('creating ORM records')
+    for name, ipix in zip(cat['SimbadName'], ipix):
+        db.session.add(Galaxy(simbad_name=name, nested=ipix))
+    log.info('saving')
+    db.session.commit()
+    log.info('done')
+
+
 def top_10_fields_by_prob():
     area = healpix.area(LocalizationTile.nested_range * FieldTile.nested_range)
     prob = func.sum(LocalizationTile.probdensity * area).label('probability')
@@ -120,6 +137,25 @@ def top_10_fields_by_prob():
         LocalizationTile.localization_id, FieldTile.field_id
     ).order_by(
         prob.desc()
+    ).limit(
+        10
+    )
+
+    return query.all()
+
+
+def top_10_galaxies_by_probdensity():
+    area = healpix.area(LocalizationTile.nested_range * FieldTile.nested_range)
+    prob = func.sum(LocalizationTile.probdensity * area).label('probability')
+
+    query = db.session.query(
+        LocalizationTile.probdensity,
+        Galaxy.simbad_name
+    ).join(
+        Galaxy,
+        LocalizationTile.nested_range.contains(Galaxy.nested)
+    ).order_by(
+        LocalizationTile.probdensity.desc()
     ).limit(
         10
     )
