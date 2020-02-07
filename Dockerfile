@@ -8,4 +8,3 @@ RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 RUN python -c 'import astropy.coordinates'
 
 CMD python -m example.demo
-
