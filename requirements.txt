@@ -1,6 +1,7 @@
 astropy-healpix
 astroquery
+cdshealpix<0.5.0
 inflection
 ligo-gracedb
-mocpy
+mocpy<0.8.0
 sqlalchemy[postgresql_psycopg2binary]
