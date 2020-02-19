@@ -145,9 +145,6 @@ def top_10_fields_by_prob():
 
 
 def top_10_galaxies_by_probdensity():
-    area = healpix.area(LocalizationTile.nested_range * FieldTile.nested_range)
-    prob = func.sum(LocalizationTile.probdensity * area).label('probability')
-
     query = db.session.query(
         LocalizationTile.probdensity,
         Galaxy.simbad_name
