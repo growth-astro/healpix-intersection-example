@@ -1,7 +1,6 @@
 astropy-healpix
 astroquery
-cdshealpix<0.5.0
 inflection
 ligo-gracedb
-mocpy<0.8.0
+mocpy<0.8.0  # upstream regressions, unpin when https://github.com/cds-astro/mocpy/issues/50 is fixed
 sqlalchemy[postgresql_psycopg2binary]
