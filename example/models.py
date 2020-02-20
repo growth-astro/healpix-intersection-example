@@ -81,17 +81,14 @@ class Field(Region, Base):
 
 class FieldTile(Tile, Base):
 
-    @declared_attr
-    def __table_args__(cls):
-        return (
-            *super().__table_args__,
-            ForeignKeyConstraint(
-                ['telescope_name',
-                 'field_id'],
-                ['field.telescope_name',
-                 'field.field_id'],
-            )
-        )
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ['telescope_name',
+             'field_id'],
+            ['field.telescope_name',
+             'field.field_id'],
+        ),
+    )
 
     telescope_name = Column(
         Unicode,

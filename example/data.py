@@ -13,7 +13,7 @@ from astroquery.vizier import VizierClass
 from ligo.gracedb.rest import GraceDb
 from mocpy import MOC
 import numpy as np
-from sqlalchemy import func
+from sqlalchemy import func, or_, union, select
 
 from . import db
 from . import healpix
@@ -123,18 +123,36 @@ def load_2mrs():
 
 
 def top_10_fields_by_prob():
-    area = healpix.area(LocalizationTile.nested_range * FieldTile.nested_range)
-    prob = func.sum(LocalizationTile.probdensity * area).label('probability')
+    a = LocalizationTile
+    b = FieldTile
+    a_lo = a.nested_lo.label('a_lo')
+    a_hi = a.nested_hi.label('a_hi')
+    b_lo = b.nested_lo.label('b_lo')
+    b_hi = b.nested_hi.label('b_hi')
+
+    query1 = db.session.query(
+        a_lo, a_hi, b_lo, b_hi,
+        FieldTile.field_id.label('field_id'),
+        LocalizationTile.localization_id.label('localization_id'),
+        LocalizationTile.probdensity.label('probdensity')
+    )
+
+    query2 = union(
+        query1.join(b, a_lo.between(b_lo, b_hi)),
+        query1.join(b, b_lo.between(a_lo, a_hi)),
+    ).cte()
+
+    lo = func.greatest(query2.c.a_lo, query2.c.b_lo)
+    hi = func.least(query2.c.a_hi, query2.c.b_hi)
+    area = (hi - lo + 1) * healpix.PIXEL_AREA
+    prob = func.sum(query2.c.probdensity * area).label('probability')
 
     query = db.session.query(
-        prob,
-        LocalizationTile.localization_id,
-        FieldTile.field_id
-    ).join(
-        FieldTile,
-        LocalizationTile.nested_range.overlaps(FieldTile.nested_range)
+        query2.c.localization_id,
+        query2.c.field_id,
+        prob
     ).group_by(
-        LocalizationTile.localization_id, FieldTile.field_id
+        query2.c.localization_id, query2.c.field_id
     ).order_by(
         prob.desc()
     ).limit(
@@ -150,7 +168,7 @@ def top_10_galaxies_by_probdensity():
         Galaxy.simbad_name
     ).join(
         Galaxy,
-        LocalizationTile.nested_range.contains(Galaxy.nested)
+        Galaxy.nested.between(LocalizationTile.nested_lo, LocalizationTile.nested_hi)
     ).order_by(
         LocalizationTile.probdensity.desc()
     ).limit(
@@ -168,7 +186,7 @@ def top_10_fields_by_galaxy_count():
         count_galaxies
     ).join(
         Galaxy,
-        FieldTile.nested_range.contains(Galaxy.nested)
+        Galaxy.nested.between(FieldTile.nested_lo, FieldTile.nested_hi)
     ).group_by(
         FieldTile.field_id
     ).order_by(

@@ -6,12 +6,10 @@ from astropy_healpix import (level_to_nside, nside_to_pixel_area,
 from mocpy import MOC
 from sqlalchemy import BigInteger, Column, Index
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.dialects.postgresql import INT8RANGE
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.sql.expression import func
-from psycopg2.extras import NumericRange
 
 LEVEL = MOC.HPY_MAX_NORDER
 """Base HEALPix resolution. This is the maximum HEALPix level that can be
@@ -24,10 +22,6 @@ PIXEL_AREA = HPX.pixel_area.to_value(u.sr)
 """Native pixel area in steradians."""
 
 
-def area(nested_range):
-    return (func.upper(nested_range) - func.lower(nested_range)) * PIXEL_AREA
-
-
 class Point:
     """Mixin class for a table that stores a HEALPix multiresolution point."""
 
@@ -35,6 +29,18 @@ class Point:
         BigInteger, index=True, nullable=False,
         comment=f'HEALPix nested index at nside=2**{LEVEL}')
 
+
+class Tile:
+    """Mixin class for a table that stores a HEALPix multiresolution tile."""
+
+    nested_lo = Column(
+        BigInteger, index=True, nullable=False, primary_key=True,
+        comment=f'Lower end of range of HEALPix nested indices at nside=2**{LEVEL}')
+
+    nested_hi = Column(
+        BigInteger, nullable=False,
+        comment=f'Upper end of range of HEALPix nested indices at nside=2**{LEVEL}')
+
     def __init__(self, *args, uniq=None, **kwargs):
         super().__init__(*args, **kwargs)
         if uniq is not None:
@@ -45,7 +51,7 @@ class Point:
         """HEALPix UNIQ pixel index."""
         # This is the same expression as in astropy_healpix.level_ipix_to_uniq,
         # but reproduced here so that SQLAlchemy can map it to SQL.
-        ipix = self.nested
+        ipix = self.nested_lo
         return ipix + (1 << 2 * (LEVEL + 1))  # FIXME: wrong, get level from log2(nested_hi - nested_lo)/2
 
     @uniq.setter
@@ -53,44 +59,8 @@ class Point:
         """HEALPix UNIQ pixel index."""
         level, ipix = uniq_to_level_ipix(value)
         shift = 2 * (LEVEL - level)
-        self.nested = ipix << shift
-
-
-class Tile:
-    """Mixin class for a table that stores a HEALPix multiresolution tile."""
-
-    nested_range = Column(
-        INT8RANGE, primary_key=True,
-        comment=f'Range of HEALPix nested indices at nside=2**{LEVEL}')
-
-    @declared_attr
-    def __table_args__(cls):
-        index = Index(
-            f'{cls.__tablename__}_nested_range_index',
-            'nested_range', postgresql_using='spgist')
-        return (index,)
-
-    def __init__(self, *args, uniq=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if uniq is not None:
-            self.uniq = uniq
-
-    @hybrid_property
-    def uniq(self):
-        """HEALPix UNIQ pixel index."""
-        # This is the same expression as in astropy_healpix.level_ipix_to_uniq,
-        # but reproduced here so that SQLAlchemy can map it to SQL.
-        ipix = self.nested_range.lower
-        return ipix + (1 << 2 * (LEVEL + 1))
-
-    @uniq.setter
-    def uniq(self, value):
-        """HEALPix UNIQ pixel index."""
-        level, ipix = uniq_to_level_ipix(value)
-        shift = 2 * (LEVEL - level)
-        lower = ipix << shift
-        upper = (ipix + 1) << shift
-        self.nested_range = NumericRange(lower, upper)
+        self.nested_lo = ipix << shift
+        self.nested_hi = ((ipix + 1) << shift) - 1
 
 
 def _class_or_lambda(cls):
@@ -129,7 +99,7 @@ class Region:
         # but it actually returns an array of size(1, 0).
         if nested_ranges.size == 0:
             nested_ranges = nested_ranges.reshape(-1, 2)
-        tiles = [tile_class(nested_range=NumericRange(lo, hi))
+        tiles = [tile_class(nested_lo=lo, nested_hi=hi)
                  for lo, hi in nested_ranges]
         return cls(*args, tiles=tiles, **kwargs)
 
