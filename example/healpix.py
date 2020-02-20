@@ -46,7 +46,7 @@ class Point:
         # This is the same expression as in astropy_healpix.level_ipix_to_uniq,
         # but reproduced here so that SQLAlchemy can map it to SQL.
         ipix = self.nested
-        return ipix + (1 << 2 * (LEVEL + 1))
+        return ipix + (1 << 2 * (LEVEL + 1))  # FIXME: wrong, get level from log2(nested_hi - nested_lo)/2
 
     @uniq.setter
     def uniq(self, value):
