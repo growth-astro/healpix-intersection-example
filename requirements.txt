@@ -1,6 +1,5 @@
 astropy-healpix
 astroquery
 inflection
-ligo-gracedb
 mocpy
 sqlalchemy[postgresql_psycopg2binary]

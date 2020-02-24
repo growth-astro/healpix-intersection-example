@@ -15,7 +15,7 @@ with time('load ZTF fields'):
     data.load_ztf()
 
 with time('load example LIGO sky map'):
-    data.load_examples(1)
+    data.load_ligovirgo()
 
 with time('loading 2MRS catalog'):
     data.load_2mrs()

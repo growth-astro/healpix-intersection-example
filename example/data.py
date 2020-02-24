@@ -1,8 +1,6 @@
 """Load external sample data"""
 import re
 import logging
-from shutil import copyfileobj
-from tempfile import NamedTemporaryFile
 
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
@@ -10,7 +8,6 @@ from astropy.time import Time
 from astropy.utils.data import get_readable_fileobj
 from astropy import units as u
 from astroquery.vizier import VizierClass
-from ligo.gracedb.rest import GraceDb
 from mocpy import MOC
 import numpy as np
 from sqlalchemy import func, or_, union, select
@@ -24,24 +21,14 @@ gracedb = GraceDb(force_noauth=True)
 log = logging.getLogger(__name__)
 
 
-def load_examples(n):
-    gps_end = int(Time.now().gps)
-    gps_start = gps_end - 86400
-    query = f'category: MDC {gps_start} .. {gps_end}'
-    log.info('querying GraceDB: "%s"', query)
-    for i, s in enumerate(gracedb.superevents(query)):
-        if i >= n:
-            break
-        gracedb_id = s['superevent_id']
-        log.info('downloading sky map for %s', gracedb_id)
-        with gracedb.files(gracedb_id, 'bayestar.multiorder.fits') as remote:
-            with NamedTemporaryFile(mode='wb') as local:
-                copyfileobj(remote, local)
-                sky_map = Table.read(local.name, format='fits')
-        log.info('creating ORM records')
-        localization = Localization.from_sky_map(sky_map)
-        log.info('saving')
-        db.session.add(localization)
+def load_ligovirgo():
+    """Load the LIGO/Virgo rapid localization for S200115j."""
+    url = 'https://gracedb.ligo.org/apiweb/superevents/S200115j/files/bayestar.multiorder.fits'
+    sky_map = Table.read(url)
+    log.info('creating ORM records')
+    localization = Localization.from_sky_map(sky_map)
+    log.info('saving')
+    db.session.add(localization)
     log.info('committing')
     db.session.commit()
     log.info('done')
