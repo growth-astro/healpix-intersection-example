@@ -16,8 +16,6 @@ from . import db
 from . import healpix
 from .models import Localization, LocalizationTile, FieldTile, Telescope, Field, Galaxy
 
-gracedb = GraceDb(force_noauth=True)
-
 log = logging.getLogger(__name__)
 
 
