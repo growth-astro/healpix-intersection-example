@@ -93,6 +93,28 @@ def load_ztf():
     log.info('done')
 
 
+def load_decam():
+    log.info('downloading and reading DECam field list')
+    url = 'https://github.com/growth-astro/growth-too-marshal/raw/master/growth/too/input/DECam.tess'
+    table = Table.read(url, names=['field_id', 'ra', 'dec'], format='ascii')
+
+    log.info('building MOCs')
+    mocs = [
+        MOC.from_cone(row['ra'] * u.deg, row['dec'] * u.deg, 1.1 * u.deg, 10)
+        for row in table]
+
+    log.info('creating ORM records')
+    telescope = Telescope(
+        telescope_name='DECam',
+        fields=[Field.from_moc(moc, field_id=field_id)
+                for field_id, moc in zip(table['field_id'], mocs)]
+    )
+    log.info('saving')
+    db.session.add(telescope)
+    db.session.commit()
+    log.info('done')
+
+
 def load_2mrs():
     log.info('loading 2MRS from VizieR')
     vizier = VizierClass(columns=['SimbadName', 'RAJ2000', 'DEJ2000'],
